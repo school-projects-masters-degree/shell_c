@@ -6,8 +6,8 @@
       "type": "lldb",
       "request": "launch",
       "args": [],
-      "cwd": ".",
-      "program": "build/Debug/outDebug"
+      "cwd": "/Users/alsjourney/Library/Mobile Documents/com~apple~CloudDocs/fh/msc/semester_1/operating_systems/exercises/shell",
+      "program": "/Users/alsjourney/Library/Mobile Documents/com~apple~CloudDocs/fh/msc/semester_1/operating_systems/exercises/shell/build/Debug/outDebug"
     }
   ]
 }

@@ -4,8 +4,16 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <signal.h>
+#include <fcntl.h>
 
 #define MAX_INPUT_SIZE 1024
+#define MAX_ARGS 16
+
+typedef struct
+{
+    char **command;
+    char *outputFile;
+} ParsedCommand;
 
 // Handling cd command
 // https://unix.stackexchange.com/questions/38808/why-is-cd-not-a-program
@@ -27,36 +35,64 @@ void signal_handler(int signo)
     }
 }
 
-char **parse_user_input(char *user_input)
+ParsedCommand parse_user_input(char *user_input)
 {
-    // Command maximum of 16 words
-    char **command = malloc(16 * sizeof(char *));
+    char **command = malloc(MAX_ARGS * sizeof(char *));
     if (command == NULL)
     {
-        perror("Malloc for command failed");
+        perror("Malloc failed");
         exit(1);
     }
 
-    char *separator = " ";
-    char *parsed;
+    ParsedCommand parsedCommand;
+    parsedCommand.outputFile = NULL;
+    parsedCommand.command = command;
+
     int index = 0;
+    char *parsed = user_input;
+    char *next_space;
 
-    parsed = strtok(user_input, separator);
-
-    while (parsed != NULL)
+    while (parsed != NULL && index < MAX_ARGS - 1)
     {
-        command[index] = parsed;
-        index++;
-        parsed = strtok(NULL, separator);
+        if (*parsed == '>')
+        {
+            // Handle redirection
+            // Skip '>'
+            parsed++;
+            if (*parsed == ' ')
+            {
+                // Here
+                // we skip the space after the '>'
+                parsed++;
+            }
+            parsedCommand.outputFile = strdup(parsed);
+            break;
+        }
+        else
+        {
+            next_space = strchr(parsed, ' ');
+            if (next_space != NULL)
+            {
+                // Replace space with null terminator
+                *next_space = '\0';
+                // Move to the character after the space
+                next_space++;
+            }
+
+            if (*parsed != '\0')
+            { // Ignore empty tokens
+                command[index++] = strdup(parsed);
+            }
+
+            parsed = next_space;
+        }
     }
-
+    // Null-terminate the command array
     command[index] = NULL;
-    return command;
+    return parsedCommand;
 }
-
 int main()
 {
-    char **command;
     char user_input[MAX_INPUT_SIZE];
     pid_t child_pid;
     int stat_loc;
@@ -91,24 +127,18 @@ int main()
 
         user_input[strcspn(user_input, "\n")] = 0;
 
-        // After cleaning user input
-        // Call method
-        command = parse_user_input(user_input);
+        ParsedCommand parsedCommand = parse_user_input(user_input);
 
-        if (strcmp(command[0], "cd") == 0)
+        if (strcmp(parsedCommand.command[0], "cd") == 0)
         {
-            if (cd(command[1]) < 0)
+            if (cd(parsedCommand.command[1]) < 0)
             {
-                perror(command[1]);
+                perror(parsedCommand.command[1]);
             }
-            // Skip the fork()
             continue;
         }
 
         child_pid = fork();
-
-        // Error Handling:
-        // So that we dont run out of memory
 
         if (child_pid < 0)
         {
@@ -121,15 +151,27 @@ int main()
             // Child
             setpgid(0, 0);
 
-            // if it returns -1 it failed
-            if (execvp(command[0], command) < 0)
+            if (parsedCommand.outputFile != NULL)
             {
-                perror(command[0]);
-                exit(1);
+                int fd = open(parsedCommand.outputFile, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+                if (fd == -1)
+                {
+                    perror("open");
+                    exit(1);
+                }
+                if (dup2(fd, STDOUT_FILENO) == -1)
+                {
+                    perror("dup2");
+                    exit(1);
+                }
+                close(fd);
             }
 
-            // Exit after fork will terminate the entire program
-            // And the exit after execvp will only terminate the child
+            if (execvp(parsedCommand.command[0], parsedCommand.command) < 0)
+            {
+                perror(parsedCommand.command[0]);
+                exit(1);
+            }
         }
         else
         {
@@ -150,7 +192,15 @@ int main()
             tcsetpgrp(STDIN_FILENO, shell_pgid);
         }
 
-        free(command);
+        for (int i = 0; parsedCommand.command[i] != NULL; i++)
+        {
+            free(parsedCommand.command[i]);
+        }
+        free(parsedCommand.command);
+        if (parsedCommand.outputFile != NULL)
+        {
+            free(parsedCommand.outputFile);
+        }
     }
 
     return 0;
