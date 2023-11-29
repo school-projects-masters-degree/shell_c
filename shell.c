@@ -6,6 +6,11 @@
 #include <signal.h>
 #include <fcntl.h>
 
+/*
+ * How to compile
+ * gcc main.c -o main
+ */
+
 #define MAX_INPUT_SIZE 1024
 #define MAX_ARGS 16
 
@@ -34,7 +39,6 @@ void signal_handler(int signo)
         fflush(stdout);
     }
 }
-
 ParsedCommand parse_user_input(char *user_input)
 {
     char **command = malloc(MAX_ARGS * sizeof(char *));
@@ -51,21 +55,31 @@ ParsedCommand parse_user_input(char *user_input)
     int index = 0;
     char *parsed = user_input;
     char *next_space;
+    char *redirect_pos;
 
     while (parsed != NULL && index < MAX_ARGS - 1)
     {
-        if (*parsed == '>')
+        redirect_pos = strchr(parsed, '>');
+        if (redirect_pos != NULL)
         {
             // Handle redirection
-            // Skip '>'
-            parsed++;
-            if (*parsed == ' ')
+            // Split the command and redirection part
+            *redirect_pos = '\0';
+            if (*(redirect_pos + 1) != '\0')
             {
-                // Here
-                // we skip the space after the '>'
-                parsed++;
+                // Redirection symbol is followed by the filename
+                parsedCommand.outputFile = strdup(redirect_pos + 1);
             }
-            parsedCommand.outputFile = strdup(parsed);
+            else
+            {
+                // Redirection symbol is followed by space
+                // and then filename
+                parsedCommand.outputFile = strdup(strtok(NULL, " "));
+            }
+            if (*parsed != '\0')
+            {
+                command[index++] = strdup(parsed);
+            }
             break;
         }
         else
@@ -108,7 +122,8 @@ int main()
 
     for (;;)
     {
-        // Ignore SIGTTIN and SIGTTOU to prevent shell from being suspended
+        // Ignore SIGTTIN and SIGTTOU to prevent
+        // shell from being suspended
         signal(SIGTTIN, SIG_IGN);
         signal(SIGTTOU, SIG_IGN);
 
