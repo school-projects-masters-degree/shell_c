@@ -7,6 +7,7 @@
 #include <fcntl.h>
 
 /*
+ * Aldin Cimpo
  * How to compile
  * gcc main.c -o main
  */
@@ -122,10 +123,12 @@ int main()
 
     for (;;)
     {
-        // Ignore SIGTTIN and SIGTTOU to prevent
-        // shell from being suspended
-        signal(SIGTTIN, SIG_IGN);
-        signal(SIGTTOU, SIG_IGN);
+        struct sigaction ignore_action;
+        ignore_action.sa_handler = SIG_IGN;
+        sigemptyset(&ignore_action.sa_mask);
+        ignore_action.sa_flags = 0;
+        sigaction(SIGTTIN, &ignore_action, NULL);
+        sigaction(SIGTTOU, &ignore_action, NULL);
 
         printf("$> ");
 
