@@ -66,17 +66,21 @@ ParsedCommand parse_user_input(char *user_input)
             // Handle redirection
             // Split the command and redirection part
             *redirect_pos = '\0';
-            if (*(redirect_pos + 1) != '\0')
+
+            char *filename = redirect_pos + 1;
+            while (*filename == ' ')
+                filename++;
+
+            parsedCommand.outputFile = strdup(filename);
+
+            // Remove spaces before '>' (if there)
+            char *command_end = redirect_pos - 1;
+            while (*command_end == ' ' && command_end > parsed)
             {
-                // Redirection symbol is followed by the filename
-                parsedCommand.outputFile = strdup(redirect_pos + 1);
+                *command_end = '\0';
+                command_end--;
             }
-            else
-            {
-                // Redirection symbol is followed by space
-                // and then filename
-                parsedCommand.outputFile = strdup(strtok(NULL, " "));
-            }
+
             if (*parsed != '\0')
             {
                 command[index++] = strdup(parsed);
@@ -121,6 +125,8 @@ int main()
     sigaction(SIGINT, &sa, NULL);
     sigaction(SIGTTOU, &sa, NULL);
 
+    printf("Welcome to the shell!\n");
+    printf("Newly added shell features: cd Command, ls>test.txt\n");
     for (;;)
     {
         struct sigaction ignore_action;
