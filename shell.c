@@ -133,7 +133,11 @@ int main()
         ignore_action.sa_handler = SIG_IGN;
         sigemptyset(&ignore_action.sa_mask);
         ignore_action.sa_flags = 0;
+        // SIGTTIN ist wenn background process
+        // Vom Controlling terminal lesen will
         sigaction(SIGTTIN, &ignore_action, NULL);
+        // SIGTTOU wenn man als background process group
+        // Auf das controlling terminal zugreifen will und schreiben will
         sigaction(SIGTTOU, &ignore_action, NULL);
 
         printf("$> ");
